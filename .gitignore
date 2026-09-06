@@ -1,19 +1,50 @@
-# data (never committed - see data/README.md)
+# ---- data -------------------------------------------------------------
+# Nothing under data/external is committed; see data/README.md for how to
+# fetch it. ARAUS audio alone is ~2.8 GB.
 data/external/
 data/interim/
 data/processed/
-*.zip
+
+# ---- audio ------------------------------------------------------------
 *.wav
 *.flac
+*.aif
+*.aiff
+*.mp3
+*.ogg
+*.m4a
 
-# outputs
+# ---- archives ---------------------------------------------------------
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+
+# ---- trained models and checkpoints -----------------------------------
+# Regenerate with scripts/train_predictor.py. The Phase 1 RF alone is
+# 184 MB, above GitHub's 100 MB file limit. Phase 4 checkpoints from the
+# GPU machine belong here too.
+models/*.joblib
+models/*.pkl
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.h5
+
+# ---- arrays and caches ------------------------------------------------
+*.npy
+*.npz
+*.parquet
+!data/external/**/*.parquet
+
+# ---- outputs ----------------------------------------------------------
 reports/*
 !reports/.gitkeep
 
-# trained model binaries (regenerate: scripts/train_predictor.py)
-models/*.joblib
-
-# python
+# ---- python -----------------------------------------------------------
 __pycache__/
 *.py[cod]
 .venv/
@@ -21,6 +52,9 @@ venv/
 .ipynb_checkpoints/
 .pytest_cache/
 *.egg-info/
+.coverage
 
-# os
+# ---- os / editor ------------------------------------------------------
 .DS_Store
+.idea/
+.vscode/
