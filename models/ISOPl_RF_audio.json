@@ -1,0 +1,36 @@
+{
+  "target": "ISOPl",
+  "model": "RF",
+  "features": [
+    "LAeq",
+    "LA10_LA90",
+    "LCeq_LAeq",
+    "Sharpness",
+    "Roughness"
+  ],
+  "target_range": [
+    0.0,
+    4.0
+  ],
+  "target_range_note": "ISO [-1,1] transposed to [0,4]; see targets.to_model_range",
+  "n_train": 25200,
+  "n_participants": 600,
+  "cv_r2": 0.1761,
+  "cv_r2_se": 0.0071,
+  "cv_mse": 0.5115,
+  "training_feature_means": {
+    "LAeq": 62.2465,
+    "LA10_LA90": 5.4563,
+    "LCeq_LAeq": 7.4565,
+    "Sharpness": 1.4006,
+    "Roughness": 0.0314
+  },
+  "training_feature_sds": {
+    "LAeq": 6.0835,
+    "LA10_LA90": 3.2821,
+    "LCeq_LAeq": 3.2782,
+    "Sharpness": 0.2516,
+    "Roughness": 0.0085
+  },
+  "caveat": "Trained on ARAUS precomputed psychoacoustics. Our extractor is validated against reference signals, not against ARAUS audio, which is not distributed. Implementation differences between the two remain unquantified."
+}

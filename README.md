@@ -25,8 +25,8 @@ Detailed per-phase record: [`PROGRESS.md`](PROGRESS.md)
 | Phase | Description | State |
 |---|---|---|
 | 1 | Perceptual predictor reproduction (ARAUS) | **done** |
-| 2 | Feature pipeline from arbitrary WAV input | next |
-| 3 | Masking loop with sampled maskers (baseline system) | |
+| 2 | Feature pipeline from arbitrary WAV input | **done** |
+| 3 | Masking loop with sampled maskers (baseline system) | next |
 | 4 | Masker autoencoder (cVAE + vocoder) | |
 | 5 | Integration | |
 | 6 | Listening study | |

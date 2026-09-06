@@ -156,3 +156,134 @@ python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
 input so the predictor can score audio it has never seen. ARAUS ships
 precomputed values only; nothing yet reads a waveform. This is the bridge
 between the predictor and the audio path.
+
+---
+
+## Phase 2 — Feature pipeline from audio
+
+**Completed** 2026-09-06 · status: **passed, with one unquantified risk**
+
+### Goal
+
+Compute the predictor's inputs from a waveform, so it can score audio it has
+never seen. ARAUS ships precomputed psychoacoustics only; until now nothing in
+the repo could read a WAV. This is the bridge between the Phase 1 predictor and
+the audio path.
+
+### What was built
+
+```
+src/restorative/
+  acoustics.py         IEC 61672 A/C weighting, exponential time weighting,
+                       exceedance levels, calibration
+  psychoacoustics.py   sharpness (DIN 45631/A1) and roughness (ECMA-418-2)
+                       via MoSQITo, block-processed
+  extract.py           waveform -> feature vector, right channel by default
+scripts/
+  feature_ablation.py  leave-one-out value of each indicator
+  train_predictor.py   fit and persist the control predictor
+  score_wav.py         score WAV files end to end
+tests/                 30 tests
+```
+
+### The tonality problem, and what it cost
+
+MoSQITo has no ECMA-418-2 tonality. Its `tonality` subpackage provides ECMA-74
+tone-to-noise ratio and prominence ratio — different quantities, on different
+scales (dB per tone, versus tonality units), which cannot be substituted into
+ARAUS's `Tavg_r` column without feeding the trained model a predictor it was
+never fitted on. TNR is therefore exposed as its own feature and a test asserts
+it never enters the ARAUS feature set.
+
+Leave-one-out ablation on ARAUS (RF, ISOPl, sgkf-gkf) measures what each
+indicator is worth:
+
+| dropped | R² | loss |
+|---|---|---|
+| LAeq | 0.1682 | **0.0277** |
+| LCeq − LAeq | 0.1738 | 0.0221 |
+| Roughness | 0.1752 | 0.0207 |
+| Tonality | 0.1761 | 0.0198 |
+| LA10 − LA90 | 0.1814 | 0.0145 |
+| Sharpness | 0.1828 | 0.0131 |
+
+No single indicator dominates; all six contribute between 0.013 and 0.028.
+`LAeq` is the most valuable, independently confirming the Phase 5 rule that the
+masker-to-base search needs a hard loudness constraint.
+
+**Decision.** The audio-side predictor uses the five computable indicators:
+**R² = 0.1761 (SE 0.0071)** against the full set's 0.1959 — a cost of 0.0198,
+still above the paper's linear-regression baseline of 0.1675. Persisted by
+`scripts/train_predictor.py` as `models/ISOPl_RF_audio.joblib`
+(git-ignored at 184 MB; regenerates in seconds).
+
+### Validation
+
+ARAUS does not distribute its audio, so the extractor cannot be compared
+against the columns it will be paired with. The anchor used instead is the
+standards' own reference signals, where the correct answer is 1.0 by
+definition:
+
+| reference signal | expected | measured |
+|---|---|---|
+| narrowband noise, 1 kHz centre, 160 Hz BW, 60 dB (DIN 45692) | 1.0 acum | **1.002** |
+| 1 kHz tone, 60 dB, 100% AM at 70 Hz | 1.0 asper | **0.995** |
+| unmodulated 1 kHz tone | ~0 asper | 0.000 |
+
+A/C weighting is checked against the IEC 61672-1 tolerance table at 31.5 Hz,
+125 Hz, 1 kHz, 4 kHz and 8 kHz, and both curves are unity at 1 kHz to within
+0.05 dB. The exceedance convention is asserted explicitly (L_10 > L_90, as in
+ARAUS), since reversing it would flip the sign of the variability feature.
+
+### Engineering constraints found
+
+- **MoSQITo's ECMA-418-2 roughness allocates every analysis frame at once.**
+  A 5 s clip peaks at 3.3 GB; a 30 s ARAUS clip would need roughly 20 GB. It
+  is now processed in 2 s blocks and averaged, which bounds peak memory at
+  1.65 GB and is what the time-aggregated ARAUS columns represent anyway. A
+  test asserts blocking does not change the answer.
+- **Throughput is about 45 s per 30 s clip**, single-threaded, dominated by
+  MoSQITo. Batch extraction over a corpus should be parallelised across
+  processes.
+- **Calibration is a required argument**, not a default. `extract()` refuses to
+  run without either `cal_db` or `target_laeq`. Given that `LAeq` is the most
+  valuable predictor, an arbitrary playback gain would silently move every
+  prediction.
+
+### End-to-end smoke test
+
+A synthetic urban base scored `ISOPl = +0.103`; the same base with a synthetic
+high-frequency "water" masker scored **−0.008**, i.e. worse. The masker raised
+Sharpness from 0.80 to 1.72 acum at constant `L_Aeq`, and the model penalised
+it. This is the loop correctly rejecting a bad masker rather than evidence
+about masking in general — the "water" was high-passed white noise, not a
+recording. It does show the two behaviours the control loop depends on:
+variability fell as intended (`LA10−LA90` 6.5 → 3.9 dB, the masker filling the
+quiet gaps), and masker *quality* changes the verdict.
+
+### Open risk
+
+**The extractor has never been compared against ARAUS's own values.** The
+predictor was trained on ARAUS's precomputed psychoacoustics (commercial
+software, calibrated stimuli) and will be fed ours. Reference-signal agreement
+constrains the error but does not measure this specific mismatch. Closing it
+needs ARAUS audio, which is a separate ~3 GB download from a host the
+automated environments cannot reach. The ARAUS masker set (407 files) is part
+of that download and is needed for Phase 3 regardless, so the two should be
+fetched together. This caveat is recorded in every trained model's metadata.
+
+### Next
+
+**Phase 3 — masking loop with sampled maskers.** Separation, attenuation and
+the MBR search using the real ARAUS maskers rather than synthesised ones. This
+is a complete working system and the baseline the autoencoder must beat; it
+also closes the open risk above, since fetching the maskers brings the audio
+needed to validate the extractor.
+
+### Infrastructure note
+
+A remote Linux machine with a strong GPU is available for training. Nothing so
+far needs it — Phases 1–3 are CPU-bound signal processing and tree ensembles.
+It matters from **Phase 4** (the conditional VAE and the HiFi-GAN vocoder), so
+training scripts from here on stay device-agnostic and take their device from
+configuration rather than hardcoding CPU.

@@ -1,4 +1,4 @@
-# Phase 1 - perceptual predictor reproduction
+# Phase 1 - perceptual predictor
 numpy>=1.24,<2.0
 pandas>=2.0
 scikit-learn>=1.3
@@ -6,3 +6,10 @@ xgboost>=2.0
 optuna>=3.5
 pyarrow>=14.0
 tqdm>=4.66
+joblib>=1.3
+
+# Phase 2 - feature extraction from audio
+scipy>=1.10
+soundfile>=0.12
+mosqito>=1.2.1
+matplotlib>=3.7   # imported by mosqito at module load

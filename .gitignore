@@ -10,6 +10,9 @@ data/processed/
 reports/*
 !reports/.gitkeep
 
+# trained model binaries (regenerate: scripts/train_predictor.py)
+models/*.joblib
+
 # python
 __pycache__/
 *.py[cod]
