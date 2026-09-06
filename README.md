@@ -20,6 +20,8 @@ by searching the masker-to-base ratio that maximises predicted pleasantness.
 
 ## Status
 
+Detailed per-phase record: [`PROGRESS.md`](PROGRESS.md)
+
 | Phase | Description | State |
 |---|---|---|
 | 1 | Perceptual predictor reproduction (ARAUS) | **done** |
