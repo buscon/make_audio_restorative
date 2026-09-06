@@ -30,9 +30,16 @@ Source: Ooi et al. (2023), ARAUS. https://github.com/ntudsp/araus-dataset-baseli
 Fetch into `data/external/araus_v1/`, then unzip in place:
 
 ```bash
+cd data/external/araus_v1
 wget -O maskers.zip "https://researchdata.ntu.edu.sg/api/access/datafile/89458?gbrecs=true"
-unzip -q maskers.zip
+wget -O data.zip    "https://researchdata.ntu.edu.sg/api/access/datafile/99922?gbrecs=true"
+unzip -q maskers.zip     # -> maskers/
+unzip -q data.zip        # -> data/ containing the CSVs
 ```
+
+The two archives unpack to different shapes: `maskers.zip` gives a `maskers/`
+directory, `data.zip` nests the CSVs inside a `data/` directory. Scripts locate
+both by searching a few levels down, so either arrangement works.
 
 - `maskers/` — 293 files (82 bird, 82 water, 41 wind, 41 traffic,
   41 construction, 6 silence), ~741 MB. `maskers.csv` carries ARAUS's own

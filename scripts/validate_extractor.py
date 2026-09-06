@@ -36,9 +36,31 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 ROOT = Path(__file__).resolve().parents[1]
-MASKER_DIR = ROOT / "data" / "external" / "araus_v1" / "maskers"
-MASKER_CSV = ROOT / "data" / "external" / "araus_v1" / "maskers.csv"
+ARAUS = ROOT / "data" / "external" / "araus_v1"
 OUT_CSV = ROOT / "reports" / "extractor_validation.csv"
+
+
+def _find(name: str, want_dir: bool = False, root: Path = ARAUS) -> Path | None:
+    """Locate an ARAUS asset regardless of how the archives were unpacked.
+
+    `data.zip` expands into its own `data/` directory while `maskers.zip`
+    expands to `maskers/`, so the layout differs depending on where each was
+    unzipped. Search a few levels rather than demanding one arrangement.
+    """
+    if not root.exists():
+        return None
+    direct = root / name
+    if direct.is_dir() if want_dir else direct.is_file():
+        return direct
+    for depth in ("*/", "*/*/"):
+        for cand in sorted(root.glob(f"{depth}{name}")):
+            if cand.is_dir() if want_dir else cand.is_file():
+                return cand
+    return None
+
+
+MASKER_DIR = _find("maskers", want_dir=True) or ARAUS / "maskers"
+MASKER_CSV = _find("maskers.csv") or ARAUS / "maskers.csv"
 
 #: our feature name -> how ARAUS expresses the same quantity
 COMPARISONS = {
@@ -131,9 +153,22 @@ def main() -> int:
     if args.report:
         return report()
 
-    if not MASKER_DIR.exists():
-        raise SystemExit(f"no maskers at {MASKER_DIR} - see data/README.md")
+    missing = [str(p) for p, ok in
+               ((MASKER_DIR, MASKER_DIR.is_dir()), (MASKER_CSV, MASKER_CSV.is_file()))
+               if not ok]
+    if missing:
+        print("could not find:", *missing, sep="\n  ")
+        print(f"\nsearched under {ARAUS}")
+        if ARAUS.exists():
+            print("what is actually there:")
+            for e in sorted(ARAUS.iterdir())[:20]:
+                print(f"  {e.name}{'/' if e.is_dir() else ''}")
+        print("\nmaskers.zip should give a maskers/ directory and data.zip the")
+        print("CSVs; unzip both under data/external/araus_v1/. See data/README.md")
+        raise SystemExit(1)
 
+    print(f"maskers: {MASKER_DIR}")
+    print(f"metadata: {MASKER_CSV}")
     meta = pd.read_csv(MASKER_CSV, low_memory=False).set_index("masker")
     OUT_CSV.parent.mkdir(exist_ok=True)
     if args.restart and OUT_CSV.exists():
